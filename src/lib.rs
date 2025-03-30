@@ -14,10 +14,10 @@ pub enum FileWriterError {
     FileOpenError = 1,
     FileWriteError = 2,
     FileCloseError = 3, // Error during explicit flush/close
-    InvalidHandle = 4, // Null handle passed
-    InvalidPath = 5,   // Null or invalid UTF-8 path
-    InvalidData = 6,   // Null data pointer passed
-    IoError = 7,       // Generic I/O error not covered above
+    InvalidHandle = 4,  // Null handle passed
+    InvalidPath = 5,    // Null or invalid UTF-8 path
+    InvalidData = 6,    // Null data pointer passed
+    IoError = 7,        // Generic I/O error not covered above
 }
 
 impl From<std::io::Error> for FileWriterError {
@@ -30,7 +30,6 @@ impl From<std::io::Error> for FileWriterError {
         }
     }
 }
-
 
 // Define C-compatible mode enum
 #[repr(C)]
@@ -54,18 +53,20 @@ pub type FileWriterHandle = FileWriter;
 // Helper function to safely get a mutable reference to the writer
 // Returns InvalidHandle error if the pointer is null or writer is None.
 #[inline]
-fn get_writer_mut(handle: *mut FileWriterHandle) -> Result<&'static mut BufWriter<File>, FileWriterError> {
+fn get_writer_mut(
+    handle: *mut FileWriterHandle,
+) -> Result<&'static mut BufWriter<File>, FileWriterError> {
     // Cast to *mut FileWriter and check null.
     // This is 'static because the borrow lasts only for the function call,
     // and we are careful about aliasing rules via the FFI boundary.
     // This is safe because C guarantees sequential calls for a given handle.
     unsafe {
-        handle.as_mut()
-              .and_then(|fw| fw.writer.as_mut())
-              .ok_or(FileWriterError::InvalidHandle)
+        handle
+            .as_mut()
+            .and_then(|fw| fw.writer.as_mut())
+            .ok_or(FileWriterError::InvalidHandle)
     }
 }
-
 
 /// Creates a new file writer.
 ///
@@ -74,8 +75,8 @@ fn get_writer_mut(handle: *mut FileWriterHandle) -> Result<&'static mut BufWrite
 /// - `handle` must be a valid pointer to a `FileWriterHandle*`.
 /// - The memory pointed to by `path` must be valid for the duration of the call.
 /// - The memory pointed to by `handle` must be valid for the duration of the call.
-#[no_mangle]
-pub extern "C" fn file_writer_new(
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn file_writer_new(
     path: *const c_char,
     handle: *mut *mut FileWriterHandle,
     mode: FileWriterMode,
@@ -100,7 +101,11 @@ pub extern "C" fn file_writer_new(
 
     let file_result = match mode {
         FileWriterMode::Append => OpenOptions::new().create(true).append(true).open(path_obj),
-        FileWriterMode::Write => OpenOptions::new().create(true).write(true).truncate(true).open(path_obj),
+        FileWriterMode::Write => OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(path_obj),
     };
 
     let file = match file_result {
@@ -112,7 +117,9 @@ pub extern "C" fn file_writer_new(
     // We will add set_buffer_size later.
     let writer = BufWriter::new(file);
 
-    let file_writer = FileWriter { writer: Some(writer) };
+    let file_writer = FileWriter {
+        writer: Some(writer),
+    };
 
     // Allocate memory on the heap for the FileWriter struct and return a raw pointer
     let boxed_writer = Box::new(file_writer);
@@ -129,8 +136,8 @@ pub extern "C" fn file_writer_new(
 /// # Safety
 /// - `handle` must be a valid pointer obtained from `file_writer_new` and not yet closed.
 /// - `size` should be greater than 0.
-#[no_mangle]
-pub extern "C" fn file_writer_set_buffer_size(
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn file_writer_set_buffer_size(
     handle: *mut FileWriterHandle,
     size: usize,
 ) -> FileWriterError {
@@ -148,8 +155,8 @@ pub extern "C" fn file_writer_set_buffer_size(
 
     // Take the old writer out of the Option
     let old_writer = match file_writer.writer.take() {
-         Some(w) => w,
-         None => return FileWriterError::InvalidHandle, // Should not happen if handle is valid
+        Some(w) => w,
+        None => return FileWriterError::InvalidHandle, // Should not happen if handle is valid
     };
 
     // into_inner() flushes the buffer and returns the inner File
@@ -170,15 +177,14 @@ pub extern "C" fn file_writer_set_buffer_size(
     }
 }
 
-
 /// Writes raw bytes to the buffered writer.
 ///
 /// # Safety
 /// - `handle` must be a valid pointer obtained from `file_writer_new` and not yet closed.
 /// - `data` must be a valid pointer to a byte buffer of at least `size` bytes.
 /// - The memory pointed to by `data` must be valid for the duration of the call.
-#[no_mangle]
-pub extern "C" fn file_writer_write_raw(
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn file_writer_write_raw(
     handle: *mut FileWriterHandle,
     data: *const u8,
     size: usize,
@@ -208,8 +214,8 @@ pub extern "C" fn file_writer_write_raw(
 /// - `handle` must be a valid pointer obtained from `file_writer_new` and not yet closed.
 /// - `str` must be a valid, null-terminated C string.
 /// - The memory pointed to by `str` must be valid for the duration of the call.
-#[no_mangle]
-pub extern "C" fn file_writer_write_string(
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn file_writer_write_string(
     handle: *mut FileWriterHandle,
     str_ptr: *const c_char,
 ) -> FileWriterError {
@@ -235,9 +241,9 @@ pub extern "C" fn file_writer_write_string(
 ///
 /// # Safety
 /// - `handle` must be a valid pointer obtained from `file_writer_new` and not yet closed.
-#[no_mangle]
-pub extern "C" fn file_writer_flush(handle: *mut FileWriterHandle) -> FileWriterError {
-     let writer = match get_writer_mut(handle) {
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn file_writer_flush(handle: *mut FileWriterHandle) -> FileWriterError {
+    let writer = match get_writer_mut(handle) {
         Ok(w) => w,
         Err(e) => return e,
     };
@@ -255,8 +261,8 @@ pub extern "C" fn file_writer_flush(handle: *mut FileWriterHandle) -> FileWriter
 /// # Safety
 /// - `handle` must be a valid pointer obtained from `file_writer_new` and not yet closed.
 /// - `handle` must not be used after this function is called.
-#[no_mangle]
-pub extern "C" fn file_writer_close(handle: *mut FileWriterHandle) -> FileWriterError {
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn file_writer_close(handle: *mut FileWriterHandle) -> FileWriterError {
     if handle.is_null() {
         // Attempting to close a null handle could be considered success (noop) or error.
         // Let's treat it as an error to catch potential bugs in C code.
@@ -274,14 +280,14 @@ pub extern "C" fn file_writer_close(handle: *mut FileWriterHandle) -> FileWriter
     if let Some(writer) = boxed_writer.writer {
         // into_inner flushes before returning the File. The File is then dropped.
         match writer.into_inner() {
-             Ok(_file) => {
-                 // File is dropped here, closing it.
-                 FileWriterError::Success
-             }
-             Err(_) => {
+            Ok(_file) => {
+                // File is dropped here, closing it.
+                FileWriterError::Success
+            }
+            Err(_) => {
                 // Error during the final flush. The handle is still consumed.
                 FileWriterError::FileCloseError
-             }
+            }
         }
         // Note: Even on error, the Box is dropped, freeing the memory of FileWriter.
     } else {

@@ -13,7 +13,7 @@ const MIB: usize = 1024 * KIB;
 fn setup_writer(path: &str, mode: FileWriterMode) -> (*mut FileWriterHandle, CString) {
     let c_path = CString::new(path).expect("CString::new failed");
     let mut handle: *mut FileWriterHandle = null_mut();
-    let result = file_writer_new(c_path.as_ptr(), &mut handle, mode);
+    let result = unsafe { file_writer_new(c_path.as_ptr(), &mut handle, mode) };
     assert_eq!(result, FileWriterError::Success, "Failed to create writer");
     assert!(!handle.is_null(), "Handle is null after creation");
     (handle, c_path) // Return c_path too to keep it alive
@@ -22,7 +22,7 @@ fn setup_writer(path: &str, mode: FileWriterMode) -> (*mut FileWriterHandle, CSt
 // Helper to clean up
 fn teardown_writer(handle: *mut FileWriterHandle) {
     if !handle.is_null() {
-        let result = file_writer_close(handle);
+        let result = unsafe { file_writer_close(handle) };
         assert_eq!(result, FileWriterError::Success, "Failed to close writer");
     }
 }
@@ -50,11 +50,13 @@ fn file_writer_benchmarks(c: &mut Criterion) {
 
                 // Actual benchmark loop
                 b.iter(|| {
-                    let result = file_writer_write_raw(
-                        handle,
-                        black_box(data_to_write.as_ptr()), // black_box data pointer
-                        black_box(s),                      // black_box size
-                    );
+                    let result = unsafe {
+                        file_writer_write_raw(
+                            handle,
+                            black_box(data_to_write.as_ptr()), // black_box data pointer
+                            black_box(s),                      // black_box size
+                        )
+                    };
                     // Don't assert inside the loop for performance, but check outside if needed
                     // assert_eq!(result, FileWriterError::Success);
                     // Preventing compiler optimization on the result if needed:
@@ -79,48 +81,52 @@ fn file_writer_benchmarks(c: &mut Criterion) {
         let (handle, _c_path) = setup_writer(path, FileWriterMode::Write);
 
         b.iter(|| {
-            let result = file_writer_write_string(
-                handle,
-                black_box(c_string.as_ptr()) // black_box string pointer
-            );
-             black_box(result);
+            let result = unsafe {
+                file_writer_write_string(
+                    handle,
+                    black_box(c_string.as_ptr()), // black_box string pointer
+                )
+            };
+            black_box(result);
         });
 
         teardown_writer(handle);
     });
 
-     // --- Benchmark BufWriter vs std::fs::File Directly (for comparison) ---
+    // --- Benchmark BufWriter vs std::fs::File Directly (for comparison) ---
     // This shows the benefit of BufWriter
-     let size_for_comparison = 1 * MIB;
-     let data_for_comparison: Vec<u8> = vec![0xCD; size_for_comparison];
+    let size_for_comparison = 1 * MIB;
+    let data_for_comparison: Vec<u8> = vec![0xCD; size_for_comparison];
 
-     group.throughput(Throughput::Bytes(size_for_comparison as u64));
-     group.bench_function("Direct File Write 1 MiB", |b| {
-         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-         let path = temp_file.path();
-         let mut file = fs::File::create(path).expect("Failed to create raw file");
+    group.throughput(Throughput::Bytes(size_for_comparison as u64));
+    group.bench_function("Direct File Write 1 MiB", |b| {
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let path = temp_file.path();
+        let mut file = fs::File::create(path).expect("Failed to create raw file");
 
-         b.iter(|| {
-             file.write_all(black_box(&data_for_comparison)).expect("Raw write failed");
-             // file.flush().expect("Raw flush failed"); // Flushing every iter is slow
-         });
-         file.flush().expect("Final raw flush failed"); // Flush once at the end
-     });
+        b.iter(|| {
+            file.write_all(black_box(&data_for_comparison))
+                .expect("Raw write failed");
+            // file.flush().expect("Raw flush failed"); // Flushing every iter is slow
+        });
+        file.flush().expect("Final raw flush failed"); // Flush once at the end
+    });
 
-     group.bench_function("BufWriter Write 1 MiB (Rust)", |b| {
-         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-         let path = temp_file.path();
-         let file = fs::File::create(path).expect("Failed to create buffered file");
-         // Default 8k buffer
-         let mut writer = std::io::BufWriter::new(file);
+    group.bench_function("BufWriter Write 1 MiB (Rust)", |b| {
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let path = temp_file.path();
+        let file = fs::File::create(path).expect("Failed to create buffered file");
+        // Default 8k buffer
+        let mut writer = std::io::BufWriter::new(file);
 
-         b.iter(|| {
-             writer.write_all(black_box(&data_for_comparison)).expect("Buffered write failed");
-             // No flush needed per iteration due to buffering
-         });
-         writer.flush().expect("Final buffered flush failed"); // Flush once at the end
-     });
-
+        b.iter(|| {
+            writer
+                .write_all(black_box(&data_for_comparison))
+                .expect("Buffered write failed");
+            // No flush needed per iteration due to buffering
+        });
+        writer.flush().expect("Final buffered flush failed"); // Flush once at the end
+    });
 
     group.finish();
 }
