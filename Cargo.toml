@@ -1,0 +1,22 @@
+[package]
+name = "file_writer"
+version = "0.1.0"
+edition = "2021"
+
+[profile.release]
+lto = true
+
+[lib]
+crate-type = ["rlib", "staticlib"] # staticlib for C FFI, rlib for Rust usage
+
+[dependencies]
+bytesize = "2.0.1"
+# No external dependencies needed for core logic
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+tempfile = "3" # For creating temporary files in benchmarks/tests
+
+[[bench]]
+name = "file_writer_benchmark" # Corresponds to benches/file_writer_benchmark.rs
+harness = false # We use criterion's harness
