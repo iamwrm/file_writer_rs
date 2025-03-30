@@ -1,4 +1,4 @@
-#include "file_writer.h" // Include the C header for our Rust library
+#include "file_writer/file_writer.h" // Include the C header for our Rust library
 #include <catch2/catch_test_macros.hpp> // Using Catch2 v3 syntax
 #include <string>
 #include <vector>

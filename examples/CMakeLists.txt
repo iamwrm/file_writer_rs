@@ -7,10 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(FetchContent)
 FetchContent_Declare(
-    file_writer_1
+    file_writer
     SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/..
 )
-FetchContent_MakeAvailable(file_writer_1)
+FetchContent_MakeAvailable(file_writer)
 
 
 # --- Fetch Catch2 for testing ---

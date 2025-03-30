@@ -31,7 +31,3 @@ jobs:
       - name: Test ffi example
         run: |
           bash examples/run.sh
-
-          
-          
-          
