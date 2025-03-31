@@ -1,5 +1,4 @@
-# This workflow is used to build the project
-name: Build
+name: Build and Test Parallel
 
 on:
   push:
@@ -16,18 +15,39 @@ jobs:
       - name: System Specs
         run: |
           lscpu
-          free -h 
+          free -h
           lsblk
-          
-      - name: Build
+
+      - name: Build and Test
         run: |
-          cargo build
-          cargo test
+          cargo build --verbose 
+          cargo test --verbose
+
+
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Bench
-        run: |
-          cargo bench
+        run: cargo bench
+
+  test-ffi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Test ffi example
         run: |
           bash examples/run.sh
+
+  test-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Test docker run
+        run: |
+          bash examples/run_in_docker.sh
