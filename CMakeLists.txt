@@ -6,8 +6,8 @@ project(file_writer)
 include(FetchContent)
 FetchContent_Declare(
     Corrosion
-    GIT_REPOSITORY https://github.com/corrosion-rs/corrosion.git
-    GIT_TAG v0.5.1 # Use a specific version/tag for stability
+    URL https://github.com/corrosion-rs/corrosion/archive/refs/tags/v0.5.1.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP 1
 )
 FetchContent_MakeAvailable(Corrosion)
 
