@@ -17,5 +17,4 @@ corrosion_import_crate(
     CRATE_TYPES staticlib
 )
 
-add_library(file_writer_header INTERFACE)
-target_include_directories(file_writer_header INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(file_writer INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)

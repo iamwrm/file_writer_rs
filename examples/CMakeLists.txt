@@ -29,7 +29,6 @@ add_executable(example_app main.cpp)
 target_link_libraries(example_app PRIVATE
     Catch2::Catch2WithMain       # Link Catch2 main
     file_writer # Use the target name provided by find_package
-    file_writer_header
 )
 
 # Add the test using Catch2's discovery
