@@ -12,6 +12,11 @@ FetchContent_Declare(
     file_writer
     SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/..
 )
+#FetchContent_Declare(
+#    file_writer
+#    GIT_REPOSITORY https://github.com/iamwrm/file_writer_rs.git
+#    GIT_TAG main
+#)
 FetchContent_MakeAvailable(file_writer)
 
 
