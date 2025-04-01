@@ -98,6 +98,15 @@ pub unsafe extern "C" fn file_writer_new(
     };
 
     let path_obj = Path::new(path_str);
+    
+    // Create parent directory if it doesn't exist
+    if let Some(parent) = path_obj.parent() {
+        if !parent.as_os_str().is_empty() {
+            if let Err(_) = std::fs::create_dir_all(parent) {
+                return FileWriterError::FileOpenError;
+            }
+        }
+    }
 
     let file_result = match mode {
         FileWriterMode::Append => OpenOptions::new().create(true).append(true).open(path_obj),
@@ -293,5 +302,53 @@ pub unsafe extern "C" fn file_writer_close(handle: *mut FileWriterHandle) -> Fil
     } else {
         // This case might happen if set_buffer_size failed and left writer as None
         FileWriterError::InvalidHandle // Or maybe Success? Let's indicate something went wrong before.
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::CString;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_create_directories() {
+        // Create a temporary directory that will be automatically cleaned up
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let base_path = temp_dir.path();
+        
+        // Create a path with non-existent subdirectories
+        let subdir_path = base_path.join("a/b/c");
+        let file_path = subdir_path.join("test.txt");
+        
+        // Convert path to C string
+        let c_path = CString::new(file_path.to_string_lossy().as_bytes())
+            .expect("Failed to create CString");
+            
+        let mut handle: *mut FileWriterHandle = std::ptr::null_mut();
+        let handle_ptr: *mut *mut FileWriterHandle = &mut handle;
+        
+        // Call the function being tested
+        unsafe {
+            let result = file_writer_new(
+                c_path.as_ptr(), 
+                handle_ptr, 
+                FileWriterMode::Write
+            );
+            
+            // Verify success
+            assert_eq!(result, FileWriterError::Success);
+            assert!(!handle.is_null());
+            
+            // Verify directories and file were created
+            assert!(subdir_path.exists());
+            assert!(file_path.exists());
+            
+            // Clean up
+            file_writer_close(handle);
+        }
+        
+        // Directory should still exist after closing the file
+        assert!(subdir_path.exists());
     }
 }
