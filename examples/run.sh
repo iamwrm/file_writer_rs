@@ -6,7 +6,7 @@ PROJECT_ROOT="$SCRIPT_DIR/.."
 EXAMPLE_DIR="$SCRIPT_DIR"
 BUILD_DIR="$EXAMPLE_DIR/build"
 
-rm -rf "$BUILD_DIR"
+# rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
 cmake -S "$EXAMPLE_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release -G Ninja

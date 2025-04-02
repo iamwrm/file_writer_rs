@@ -75,7 +75,7 @@ fn get_writer_mut(
 /// - `handle` must be a valid pointer to a `FileWriterHandle*`.
 /// - The memory pointed to by `path` must be valid for the duration of the call.
 /// - The memory pointed to by `handle` must be valid for the duration of the call.
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub unsafe extern "C" fn file_writer_new(
     path: *const c_char,
     handle: *mut *mut FileWriterHandle,
@@ -98,7 +98,7 @@ pub unsafe extern "C" fn file_writer_new(
     };
 
     let path_obj = Path::new(path_str);
-    
+
     // Create parent directory if it doesn't exist
     if let Some(parent) = path_obj.parent() {
         if !parent.as_os_str().is_empty() {
@@ -145,7 +145,7 @@ pub unsafe extern "C" fn file_writer_new(
 /// # Safety
 /// - `handle` must be a valid pointer obtained from `file_writer_new` and not yet closed.
 /// - `size` should be greater than 0.
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub unsafe extern "C" fn file_writer_set_buffer_size(
     handle: *mut FileWriterHandle,
     size: usize,
@@ -192,7 +192,7 @@ pub unsafe extern "C" fn file_writer_set_buffer_size(
 /// - `handle` must be a valid pointer obtained from `file_writer_new` and not yet closed.
 /// - `data` must be a valid pointer to a byte buffer of at least `size` bytes.
 /// - The memory pointed to by `data` must be valid for the duration of the call.
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub unsafe extern "C" fn file_writer_write_raw(
     handle: *mut FileWriterHandle,
     data: *const u8,
@@ -223,7 +223,7 @@ pub unsafe extern "C" fn file_writer_write_raw(
 /// - `handle` must be a valid pointer obtained from `file_writer_new` and not yet closed.
 /// - `str` must be a valid, null-terminated C string.
 /// - The memory pointed to by `str` must be valid for the duration of the call.
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub unsafe extern "C" fn file_writer_write_string(
     handle: *mut FileWriterHandle,
     str_ptr: *const c_char,
@@ -250,7 +250,7 @@ pub unsafe extern "C" fn file_writer_write_string(
 ///
 /// # Safety
 /// - `handle` must be a valid pointer obtained from `file_writer_new` and not yet closed.
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub unsafe extern "C" fn file_writer_flush(handle: *mut FileWriterHandle) -> FileWriterError {
     let writer = match get_writer_mut(handle) {
         Ok(w) => w,
@@ -270,7 +270,7 @@ pub unsafe extern "C" fn file_writer_flush(handle: *mut FileWriterHandle) -> Fil
 /// # Safety
 /// - `handle` must be a valid pointer obtained from `file_writer_new` and not yet closed.
 /// - `handle` must not be used after this function is called.
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub unsafe extern "C" fn file_writer_close(handle: *mut FileWriterHandle) -> FileWriterError {
     if handle.is_null() {
         // Attempting to close a null handle could be considered success (noop) or error.
@@ -316,38 +316,34 @@ mod tests {
         // Create a temporary directory that will be automatically cleaned up
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let base_path = temp_dir.path();
-        
+
         // Create a path with non-existent subdirectories
         let subdir_path = base_path.join("a/b/c");
         let file_path = subdir_path.join("test.txt");
-        
+
         // Convert path to C string
-        let c_path = CString::new(file_path.to_string_lossy().as_bytes())
-            .expect("Failed to create CString");
-            
+        let c_path =
+            CString::new(file_path.to_string_lossy().as_bytes()).expect("Failed to create CString");
+
         let mut handle: *mut FileWriterHandle = std::ptr::null_mut();
         let handle_ptr: *mut *mut FileWriterHandle = &mut handle;
-        
+
         // Call the function being tested
         unsafe {
-            let result = file_writer_new(
-                c_path.as_ptr(), 
-                handle_ptr, 
-                FileWriterMode::Write
-            );
-            
+            let result = file_writer_new(c_path.as_ptr(), handle_ptr, FileWriterMode::Write);
+
             // Verify success
             assert_eq!(result, FileWriterError::Success);
             assert!(!handle.is_null());
-            
+
             // Verify directories and file were created
             assert!(subdir_path.exists());
             assert!(file_path.exists());
-            
+
             // Clean up
             file_writer_close(handle);
         }
-        
+
         // Directory should still exist after closing the file
         assert!(subdir_path.exists());
     }
