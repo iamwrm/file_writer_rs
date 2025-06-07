@@ -1,8 +1,8 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
 use file_writer::{
-    file_writer_close, file_writer_new, file_writer_write_raw, file_writer_write_string,
-    file_writer_write_large, file_writer_write_batch, BufferDescriptor,
-    FileWriterError, FileWriterHandle, FileWriterMode,
+    file_writer_close, file_writer_new, file_writer_write_batch, file_writer_write_large,
+    file_writer_write_raw, file_writer_write_string, BufferDescriptor, FileWriterError,
+    FileWriterHandle, FileWriterMode,
 };
 use std::{ffi::CString, fs, io::Write, ptr::null_mut};
 use tempfile::NamedTempFile;

@@ -168,7 +168,7 @@ pub unsafe extern "C" fn file_writer_write_raw(
     if size == 0 {
         return FileWriterError::Success;
     }
-    
+
     if data.is_null() {
         return FileWriterError::InvalidData;
     }
@@ -245,7 +245,7 @@ pub unsafe extern "C" fn file_writer_write_batch(
     if buffers.is_null() {
         return FileWriterError::InvalidData;
     }
-    
+
     if count == 0 {
         return FileWriterError::Success;
     }
@@ -256,7 +256,7 @@ pub unsafe extern "C" fn file_writer_write_batch(
     };
 
     let buffer_slice = unsafe { slice::from_raw_parts(buffers, count) };
-    
+
     for buffer in buffer_slice {
         if buffer.size > 0 {
             if buffer.data.is_null() {
@@ -285,7 +285,7 @@ pub unsafe extern "C" fn file_writer_write_large(
     if size == 0 {
         return FileWriterError::Success;
     }
-    
+
     if data.is_null() {
         return FileWriterError::InvalidData;
     }
@@ -296,12 +296,12 @@ pub unsafe extern "C" fn file_writer_write_large(
     };
 
     let data_slice = unsafe { slice::from_raw_parts(data, size) };
-    
+
     if size > 1024 * 1024 {
         if writer.flush().is_err() {
             return FileWriterError::FileWriteError;
         }
-        
+
         if writer.get_mut().write_all(data_slice).is_err() {
             return FileWriterError::FileWriteError;
         }
@@ -324,12 +324,8 @@ pub unsafe extern "C" fn file_writer_close(handle: *mut FileWriterHandle) -> Fil
 
     if let Some(writer) = boxed_writer.writer {
         match writer.into_inner() {
-            Ok(_file) => {
-                FileWriterError::Success
-            }
-            Err(_) => {
-                FileWriterError::FileCloseError
-            }
+            Ok(_file) => FileWriterError::Success,
+            Err(_) => FileWriterError::FileCloseError,
         }
     } else {
         FileWriterError::InvalidHandle
