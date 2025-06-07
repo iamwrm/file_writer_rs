@@ -1,29 +1,27 @@
-#include "file_writer/file_writer.h" // Include the C header for our Rust library
-#include <catch2/catch_test_macros.hpp> // Using Catch2 v3 syntax
+#include "file_writer/file_writer.h"
+#include <catch2/catch_test_macros.hpp>
 #include <string>
 #include <vector>
 #include <fstream>
 #include <iostream>
-#include <cstdio> // For std::remove
+#include <cstdio>
 
-// Helper function to read file content
 std::string readFileContent(const std::string& filename) {
     std::ifstream ifs(filename, std::ios::binary);
     if (!ifs) {
-        return ""; // Return empty string on error
+        return "";
     }
     return std::string((std::istreambuf_iterator<char>(ifs)),
                        (std::istreambuf_iterator<char>()));
 }
 
-// Helper function to clean up test files
 void cleanupFile(const std::string& filename) {
     std::remove(filename.c_str());
 }
 
 TEST_CASE("FileWriter Basic Operations", "[file_writer]") {
     const char* test_filename = "test_basic.txt";
-    cleanupFile(test_filename); // Ensure clean state
+    cleanupFile(test_filename);
 
     FileWriterHandle* handle = nullptr;
     FileWriterError err;
@@ -39,7 +37,7 @@ TEST_CASE("FileWriter Basic Operations", "[file_writer]") {
 
         err = file_writer_close(handle);
         REQUIRE(err == FileWriterError::Success);
-        handle = nullptr; // Prevent double close in teardown
+        handle = nullptr;
 
         std::string content = readFileContent(test_filename);
         REQUIRE(content == message);
@@ -64,7 +62,6 @@ TEST_CASE("FileWriter Basic Operations", "[file_writer]") {
     }
 
      SECTION("Append Mode") {
-        // First write
         err = file_writer_new(test_filename, &handle, FileWriterMode::Write);
         REQUIRE(err == FileWriterError::Success);
         const char* first_part = "Part1;";
@@ -74,7 +71,6 @@ TEST_CASE("FileWriter Basic Operations", "[file_writer]") {
         REQUIRE(err == FileWriterError::Success);
         handle = nullptr;
 
-        // Second write (Append)
         err = file_writer_new(test_filename, &handle, FileWriterMode::Append);
         REQUIRE(err == FileWriterError::Success);
         const char* second_part = "Part2";
@@ -96,16 +92,9 @@ TEST_CASE("FileWriter Basic Operations", "[file_writer]") {
         err = file_writer_write_string(handle, message1);
         REQUIRE(err == FileWriterError::Success);
 
-        // Flush the data
         err = file_writer_flush(handle);
         REQUIRE(err == FileWriterError::Success);
 
-        // Verify content immediately after flush (might not be guaranteed on all OS without fsync, but often works)
-        // For robust check, you might need OS-specific sync or reopen the file.
-        // Here, we primarily test that flush doesn't error out easily.
-        std::string content_after_flush = readFileContent(test_filename);
-        // This check depends on OS buffering behavior, may not be reliable
-        // REQUIRE(content_after_flush == message1);
 
         const char* message2 = "DataAfterFlush";
         err = file_writer_write_string(handle, message2);
@@ -123,21 +112,18 @@ TEST_CASE("FileWriter Basic Operations", "[file_writer]") {
         err = file_writer_new(test_filename, &handle, FileWriterMode::Write);
         REQUIRE(err == FileWriterError::Success);
 
-        // Set a small buffer size (e.g., 16 bytes)
         err = file_writer_set_buffer_size(handle, 16);
         REQUIRE(err == FileWriterError::Success);
 
-        // Write more data than the buffer size to ensure it has to flush internally or uses the new size
         std::string long_message(100, 'X');
         err = file_writer_write_string(handle, long_message.c_str());
         REQUIRE(err == FileWriterError::Success);
 
-         // Set a larger buffer size
-        err = file_writer_set_buffer_size(handle, 8192); // Default-ish size
+        err = file_writer_set_buffer_size(handle, 8192);
         REQUIRE(err == FileWriterError::Success);
 
         std::string message2 = "Second Write";
-         err = file_writer_write_string(handle, message2.c_str());
+        err = file_writer_write_string(handle, message2.c_str());
         REQUIRE(err == FileWriterError::Success);
 
 
@@ -160,21 +146,16 @@ TEST_CASE("FileWriter Basic Operations", "[file_writer]") {
         FileWriterHandle* invalid_handle = nullptr;
         const char* message = "test";
         err = file_writer_write_string(invalid_handle, message);
-        // Depending on implementation, might check inside or rely on OS crash.
-        // Our Rust code checks for null handle.
         REQUIRE(err == FileWriterError::InvalidHandle);
 
         err = file_writer_flush(invalid_handle);
         REQUIRE(err == FileWriterError::InvalidHandle);
 
-        // Closing a null handle should also be an error or no-op (we return error)
         err = file_writer_close(invalid_handle);
-         REQUIRE(err == FileWriterError::InvalidHandle);
+        REQUIRE(err == FileWriterError::InvalidHandle);
     }
 
 
-    // Teardown: Ensure handle is closed if a section failed mid-way
-    // and cleanup the test file
     if (handle != nullptr) {
         file_writer_close(handle);
     }
